@@ -50,6 +50,8 @@ android {
 }
 
 dependencies {
+
+
     // CameraX libraries
 
     // Provides Camera2 based implementation, which is a modern camera API that offers fine control over camera functionalities.
