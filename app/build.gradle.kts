@@ -13,7 +13,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -29,19 +28,24 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
     buildFeatures {
         compose = true
     }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -50,24 +54,12 @@ android {
 }
 
 dependencies {
-
-
-    // CameraX libraries
-
-    // Provides Camera2 based implementation, which is a modern camera API that offers fine control over camera functionalities.
+    // Existing dependencies
     implementation(libs.androidx.camera.camera2)
-
-    // Integrates camera operations with the Android lifecycle, simplifying the management of lifecycle states.
     implementation(libs.androidx.camera.lifecycle)
-
-    // Provides a high-level view that manages the camera lifecycle and presents the preview layer.
     implementation(libs.androidx.camera.view)
-
-    // Coroutines simplify asynchronous programming in Kotlin, making it easier to handle background tasks like image processing and network calls without blocking the main thread.
     implementation(libs.kotlinx.coroutines.android)
-
     implementation("com.google.mlkit:text-recognition:16.0.0")
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -76,6 +68,11 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+
+    // Add Navigation Compose dependency
+    implementation(libs.androidx.navigation.compose)
+
+    // Test dependencies
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
