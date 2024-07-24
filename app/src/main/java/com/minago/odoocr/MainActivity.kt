@@ -43,6 +43,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    var capturedImage by remember { mutableStateOf<Bitmap?>(null) }
+    var extractedText by remember { mutableStateOf("") }
+    var debugInfo by remember { mutableStateOf("") }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -52,10 +55,19 @@ fun AppNavigation() {
             EnterInvoiceScreen(navController)
         }
         composable("captureImage") {
-            CameraScreen(navController)
+            CameraScreen(navController) { image, text, debug ->
+                capturedImage = image
+                extractedText = text
+                debugInfo = debug
+                navController.navigate("result")
+            }
+        }
+        composable("result") {
+            ResultScreen(navController, capturedImage, extractedText, debugInfo)
         }
     }
 }
+
 
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -146,11 +158,12 @@ fun EnterInvoiceScreen(navController: NavController) {
     }
 }
 @Composable
-fun CameraScreen(navController: NavController) {
+fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, String, String) -> Unit) {
     var capturedImage by remember { mutableStateOf<Bitmap?>(null) }
     var extractedText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var debugInfo by remember { mutableStateOf("") }
+    var isProcessing by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Column(
@@ -159,7 +172,6 @@ fun CameraScreen(navController: NavController) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
         Button(
             onClick = { navController.popBackStack() },
             modifier = Modifier
@@ -187,26 +199,24 @@ fun CameraScreen(navController: NavController) {
         }
 
         Button(
-            onClick = { captureImage(context) { image, error, debug ->
-                capturedImage = image
-                errorMessage = error
-                debugInfo = debug
-            } },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Capture Image")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
             onClick = {
-                capturedImage?.let { performOCR(it) { text -> extractedText = text } }
+                isProcessing = true
+                captureAndProcessImage(context) { image, text, error, debug ->
+                    capturedImage = image
+                    extractedText = text
+                    errorMessage = error
+                    debugInfo = debug
+                    isProcessing = false
+                }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = capturedImage != null
+            enabled = !isProcessing
         ) {
-            Text("Extract Text")
+            Text(if (isProcessing) "Processing..." else "Capture and Extract Text")
+        }
+
+        if (isProcessing) {
+            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -243,32 +253,86 @@ fun CameraScreen(navController: NavController) {
     }
 }
 
-private fun captureImage(context: android.content.Context, onResult: (Bitmap?, String?, String) -> Unit) {
+
+@Composable
+fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extractedText: String, debugInfo: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(bottom = 16.dp)
+        ) {
+            Text("Previous")
+        }
+
+        capturedImage?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = "Captured image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .padding(bottom = 16.dp)
+            )
+        }
+
+        Text(
+            text = "Extracted Text:",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Text(
+            text = extractedText,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        )
+
+        if (debugInfo.isNotEmpty()) {
+            Text(
+                text = "Debug Info:",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+            )
+            Text(
+                text = debugInfo,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
+        }
+    }
+}
+
+private fun captureAndProcessImage(
+    context: android.content.Context,
+    onResult: (Bitmap?, String, String?, String) -> Unit
+) {
     try {
-        var debugInfo = "Attempting to load image...\n"
+        var debugInfo = "Attempting to load and process image...\n"
         debugInfo += "Assets found: ${context.assets.list("")?.joinToString(", ") ?: "None"}\n"
 
         val capturedImage = loadImageFromAssets(context, "invoice_template.jpg")
         if (capturedImage != null) {
-            debugInfo += "Image loaded successfully"
-            onResult(capturedImage, null, debugInfo)
+            debugInfo += "Image loaded successfully\n"
+            performOCR(capturedImage) { text ->
+                onResult(capturedImage, text, null, debugInfo)
+            }
         } else {
-            onResult(null, "Failed to load image: Bitmap is null", debugInfo)
+            onResult(null, "", "Failed to load image: Bitmap is null", debugInfo)
         }
-
-        // Try loading a test text file
-        try {
-            val textContent = context.assets.open("test.txt").bufferedReader().use { it.readText() }
-            debugInfo += "\nTest file content: $textContent"
-        } catch (e: Exception) {
-            debugInfo += "\nFailed to read test file: ${e.message}"
-        }
-
-        onResult(capturedImage, null, debugInfo)
     } catch (e: Exception) {
-        val errorMessage = "Failed to load image: ${e.message}"
+        val errorMessage = "Failed to load or process image: ${e.message}"
         Log.e(TAG, errorMessage, e)
-        onResult(null, errorMessage, "Exception: ${e.message}")
+        onResult(null, "", errorMessage, "Exception: ${e.message}")
     }
 }
 
