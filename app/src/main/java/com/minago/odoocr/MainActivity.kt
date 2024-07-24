@@ -52,7 +52,7 @@ fun AppNavigation() {
             EnterInvoiceScreen(navController)
         }
         composable("captureImage") {
-            CameraScreen()
+            CameraScreen(navController)
         }
     }
 }
@@ -105,6 +105,15 @@ fun EnterInvoiceScreen(navController: NavController) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(bottom = 16.dp)
+        ) {
+            Text("Previous")
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         Text(
@@ -136,9 +145,8 @@ fun EnterInvoiceScreen(navController: NavController) {
         )
     }
 }
-
 @Composable
-fun CameraScreen() {
+fun CameraScreen(navController: NavController) {
     var capturedImage by remember { mutableStateOf<Bitmap?>(null) }
     var extractedText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -151,6 +159,16 @@ fun CameraScreen() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(bottom = 16.dp)
+        ) {
+            Text("Previous")
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
