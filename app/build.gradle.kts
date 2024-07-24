@@ -66,6 +66,7 @@ dependencies {
     // Coroutines simplify asynchronous programming in Kotlin, making it easier to handle background tasks like image processing and network calls without blocking the main thread.
     implementation(libs.kotlinx.coroutines.android)
 
+    implementation("com.google.mlkit:text-recognition:16.0.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
