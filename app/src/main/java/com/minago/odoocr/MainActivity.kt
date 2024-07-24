@@ -50,7 +50,6 @@ class MainActivity : ComponentActivity() {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Simulate camera preview
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -63,16 +62,23 @@ class MainActivity : ComponentActivity() {
             Button(
                 onClick = {
                     try {
-                        debugInfo = "Attempting to load image..."
+                        debugInfo = "Attempting to load image...\n"
+                        debugInfo += "Assets found: ${context.assets.list("")?.joinToString(", ") ?: "None"}\n"
                         capturedImage = loadImageFromAssets(context, "invoice_template.jpg")
                         if (capturedImage != null) {
                             errorMessage = null
-                            debugInfo += "\nImage loaded successfully"
-                            Log.d(TAG, "Image loaded successfully")
+                            debugInfo += "Image loaded successfully"
                         } else {
                             errorMessage = "Failed to load image: Bitmap is null"
-                            debugInfo += "\nFailed to load image: Bitmap is null"
-                            Log.e(TAG, "Failed to load image: Bitmap is null")
+                            debugInfo += "Failed to load image: Bitmap is null"
+                        }
+
+                        // Try loading a test text file
+                        try {
+                            val textContent = context.assets.open("test.txt").bufferedReader().use { it.readText() }
+                            debugInfo += "\nTest file content: $textContent"
+                        } catch (e: Exception) {
+                            debugInfo += "\nFailed to read test file: ${e.message}"
                         }
                     } catch (e: Exception) {
                         errorMessage = "Failed to load image: ${e.message}"
@@ -115,7 +121,7 @@ class MainActivity : ComponentActivity() {
             }
 
             Text(
-                text = "Debug Info: $debugInfo",
+                text = "Debug Info:\n$debugInfo",
                 modifier = Modifier.padding(top = 16.dp)
             )
 
@@ -132,23 +138,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
     private fun loadImageFromAssets(context: android.content.Context, fileName: String): Bitmap? {
-        return try {
-            Log.d(TAG, "Attempting to load image: $fileName")
-            context.assets.open(fileName).use {
-                val bitmap = BitmapFactory.decodeStream(it)
-                if (bitmap != null) {
-                    Log.d(TAG, "Image loaded successfully. Dimensions: ${bitmap.width}x${bitmap.height}")
-                } else {
-                    Log.e(TAG, "Failed to decode image from stream")
-                }
-                bitmap
+    return try {
+        Log.d(TAG, "Attempting to load image: $fileName")
+        context.assets.open(fileName).use { inputStream ->
+            Log.d(TAG, "Input stream opened successfully")
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            if (bitmap != null) {
+                Log.d(TAG, "Image loaded successfully. Dimensions: ${bitmap.width}x${bitmap.height}")
+            } else {
+                Log.e(TAG, "Failed to decode image from stream")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading image: ${e.message}", e)
-            null
+            bitmap
         }
+    } catch (e: Exception) {
+        Log.e(TAG, "Error loading image: ${e.message}", e)
+        null
     }
+}
 
     private fun performOCR(bitmap: Bitmap, onTextExtracted: (String) -> Unit) {
         val inputImage = InputImage.fromBitmap(bitmap, 0)
