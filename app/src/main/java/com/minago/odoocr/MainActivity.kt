@@ -45,7 +45,6 @@ fun AppNavigation() {
     val navController = rememberNavController()
     var capturedImage by remember { mutableStateOf<Bitmap?>(null) }
     var extractedText by remember { mutableStateOf("") }
-    var debugInfo by remember { mutableStateOf("") }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -55,15 +54,14 @@ fun AppNavigation() {
             EnterInvoiceScreen(navController)
         }
         composable("captureImage") {
-            CameraScreen(navController) { image, text, debug ->
+            CameraScreen(navController) { image, text ->
                 capturedImage = image
                 extractedText = text
-                debugInfo = debug
                 navController.navigate("result")
             }
         }
         composable("result") {
-            ResultScreen(navController, capturedImage, extractedText, debugInfo)
+            ResultScreen(navController, capturedImage, extractedText)
         }
     }
 }
@@ -158,11 +156,7 @@ fun EnterInvoiceScreen(navController: NavController) {
     }
 }
 @Composable
-fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, String, String) -> Unit) {
-    var capturedImage by remember { mutableStateOf<Bitmap?>(null) }
-    var extractedText by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var debugInfo by remember { mutableStateOf("") }
+fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, String) -> Unit) {
     var isProcessing by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -187,75 +181,27 @@ fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, String
                 .weight(1f)
                 .padding(bottom = 16.dp)
         ) {
-            if (capturedImage != null) {
-                Image(
-                    bitmap = capturedImage!!.asImageBitmap(),
-                    contentDescription = "Captured image",
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Text("Camera Preview (Simulated)", modifier = Modifier.align(Alignment.Center))
-            }
+            Text("CAMERA PREVIEW", modifier = Modifier.align(Alignment.Center))
         }
 
         Button(
             onClick = {
                 isProcessing = true
-                captureAndProcessImage(context) { image, text, error, debug ->
-                    capturedImage = image
-                    extractedText = text
-                    errorMessage = error
-                    debugInfo = debug
+                captureAndProcessImage(context) { image, text ->
                     isProcessing = false
+                    onImageCaptured(image, text)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = !isProcessing
         ) {
-            Text(if (isProcessing) "Processing..." else "Capture and Extract Text")
-        }
-
-        if (isProcessing) {
-            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (extractedText.isNotEmpty()) {
-            Text(
-                text = "Extracted Text:",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = extractedText,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            )
-        }
-
-        errorMessage?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 16.dp)
-            )
-        }
-
-        if (debugInfo.isNotEmpty()) {
-            Text(
-                text = "Debug Info:\n$debugInfo",
-                modifier = Modifier.padding(top = 16.dp)
-            )
+            Text(if (isProcessing) "Processing..." else "Capture&Extract")
         }
     }
 }
 
-
 @Composable
-fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extractedText: String, debugInfo: String) {
+fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extractedText: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -283,56 +229,32 @@ fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extracted
         }
 
         Text(
-            text = "Extracted Text:",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Text(
             text = extractedText,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         )
-
-        if (debugInfo.isNotEmpty()) {
-            Text(
-                text = "Debug Info:",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-            )
-            Text(
-                text = debugInfo,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
-        }
     }
 }
 
 private fun captureAndProcessImage(
     context: android.content.Context,
-    onResult: (Bitmap?, String, String?, String) -> Unit
+    onResult: (Bitmap?, String) -> Unit
 ) {
     try {
-        var debugInfo = "Attempting to load and process image...\n"
-        debugInfo += "Assets found: ${context.assets.list("")?.joinToString(", ") ?: "None"}\n"
-
         val capturedImage = loadImageFromAssets(context, "invoice_template.jpg")
         if (capturedImage != null) {
-            debugInfo += "Image loaded successfully\n"
             performOCR(capturedImage) { text ->
-                onResult(capturedImage, text, null, debugInfo)
+                onResult(capturedImage, text)
             }
         } else {
-            onResult(null, "", "Failed to load image: Bitmap is null", debugInfo)
+            onResult(null, "Failed to load image")
         }
     } catch (e: Exception) {
         val errorMessage = "Failed to load or process image: ${e.message}"
         Log.e(TAG, errorMessage, e)
-        onResult(null, "", errorMessage, "Exception: ${e.message}")
+        onResult(null, errorMessage)
     }
 }
 
