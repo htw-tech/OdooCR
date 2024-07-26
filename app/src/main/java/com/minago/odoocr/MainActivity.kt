@@ -3,7 +3,6 @@ package com.minago.odoocr
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -21,17 +20,18 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import androidx.compose.material3.Text
+import androidx.lifecycle.lifecycleScope
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.util.Log
+import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate called")
-
         setContent {
             MaterialTheme {
                 AppNavigation()
@@ -44,7 +44,9 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation() {
     val navController = rememberNavController()
     var capturedImage by remember { mutableStateOf<Bitmap?>(null) }
-    var extractedText by remember { mutableStateOf("") }
+    //var extractedText by remember { mutableStateOf("") }
+    var extractedText by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -54,14 +56,14 @@ fun AppNavigation() {
             EnterInvoiceScreen(navController)
         }
         composable("captureImage") {
-            CameraScreen(navController) { image, text ->
+            CameraScreen(navController) { image, extractedFields ->
                 capturedImage = image
-                extractedText = text
+                extractedText = extractedFields
                 navController.navigate("result")
             }
         }
         composable("result") {
-            ResultScreen(navController, capturedImage, extractedText)
+            ResultScreen(navController, capturedImage, extractedText as Map<String, String>)
         }
     }
 }
@@ -156,9 +158,10 @@ fun EnterInvoiceScreen(navController: NavController) {
     }
 }
 @Composable
-fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, String) -> Unit) {
+fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, Map<String, String>) -> Unit) {
     var isProcessing by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -187,21 +190,22 @@ fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, String
         Button(
             onClick = {
                 isProcessing = true
-                captureAndProcessImage(context) { image, text ->
+                coroutineScope.launch {
+                    val result = InvoiceProcessor.processInvoice(context, "invoice_template.jpg")
                     isProcessing = false
-                    onImageCaptured(image, text)
+                    onImageCaptured(null, result) // Note: We're not capturing a real image here
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = !isProcessing
         ) {
-            Text(if (isProcessing) "Processing..." else "Capture&Extract")
+            Text(if (isProcessing) "Processing..." else "Capture & Extract")
         }
     }
 }
 
 @Composable
-fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extractedText: String) {
+fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extractedFields: Map<String, String>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -229,66 +233,19 @@ fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extracted
         }
 
         Text(
-            text = extractedText,
+            text = "Extracted Fields:",
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .padding(bottom = 8.dp)
         )
+
+        extractedFields.forEach { (key, value) ->
+            Text(
+                text = "$key: $value",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp)
+            )
+        }
     }
-}
-
-private fun captureAndProcessImage(
-    context: android.content.Context,
-    onResult: (Bitmap?, String) -> Unit
-) {
-    try {
-        val capturedImage = loadImageFromAssets(context, "invoice_template.jpg")
-        if (capturedImage != null) {
-            performOCR(capturedImage) { text ->
-                onResult(capturedImage, text)
-            }
-        } else {
-            onResult(null, "Failed to load image")
-        }
-    } catch (e: Exception) {
-        val errorMessage = "Failed to load or process image: ${e.message}"
-        Log.e(TAG, errorMessage, e)
-        onResult(null, errorMessage)
-    }
-}
-
-private fun loadImageFromAssets(context: android.content.Context, fileName: String): Bitmap? {
-    return try {
-        Log.d(TAG, "Attempting to load image: $fileName")
-        context.assets.open(fileName).use { inputStream ->
-            Log.d(TAG, "Input stream opened successfully")
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            if (bitmap != null) {
-                Log.d(TAG, "Image loaded successfully. Dimensions: ${bitmap.width}x${bitmap.height}")
-            } else {
-                Log.e(TAG, "Failed to decode image from stream")
-            }
-            bitmap
-        }
-    } catch (e: Exception) {
-        Log.e(TAG, "Error loading image: ${e.message}", e)
-        null
-    }
-}
-
-private fun performOCR(bitmap: Bitmap, onTextExtracted: (String) -> Unit) {
-    val inputImage = InputImage.fromBitmap(bitmap, 0)
-    Log.d(TAG, "Starting OCR process")
-
-    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-    recognizer.process(inputImage)
-        .addOnSuccessListener { visionText ->
-            Log.d(TAG, "OCR successful: ${visionText.text}")
-            onTextExtracted(visionText.text)
-        }
-        .addOnFailureListener { e ->
-            Log.e(TAG, "OCR failed", e)
-            onTextExtracted("OCR failed: ${e.message}")
-        }
 }
