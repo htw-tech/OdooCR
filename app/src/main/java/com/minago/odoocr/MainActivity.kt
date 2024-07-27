@@ -3,6 +3,7 @@ package com.minago.odoocr
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -20,12 +21,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.material3.Text
-import androidx.lifecycle.lifecycleScope
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import android.util.Log
 import kotlinx.coroutines.launch
 
+import com.minago.odoocr.InvoiceProcessor
 private const val TAG = "MainActivity"
 
 
@@ -44,9 +42,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation() {
     val navController = rememberNavController()
     var capturedImage by remember { mutableStateOf<Bitmap?>(null) }
-    //var extractedText by remember { mutableStateOf("") }
-    var extractedText by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-
+    var extractedText by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -63,7 +59,7 @@ fun AppNavigation() {
             }
         }
         composable("result") {
-            ResultScreen(navController, capturedImage, extractedText as Map<String, String>)
+            ResultScreen(navController, capturedImage, extractedText)
         }
     }
 }
@@ -158,8 +154,10 @@ fun EnterInvoiceScreen(navController: NavController) {
     }
 }
 @Composable
-fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, Map<String, String>) -> Unit) {
+
+fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, Map<String, Any>) -> Unit) {
     var isProcessing by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -187,13 +185,34 @@ fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, Map<St
             Text("CAMERA PREVIEW", modifier = Modifier.align(Alignment.Center))
         }
 
+        errorMessage?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
         Button(
             onClick = {
                 isProcessing = true
+                errorMessage = null
                 coroutineScope.launch {
-                    val result = InvoiceProcessor.processInvoice(context, "invoice_template.jpg")
-                    isProcessing = false
-                    onImageCaptured(null, result) // Note: We're not capturing a real image here
+                    try {
+                        val result = InvoiceProcessor.processInvoice(context, "invoice_template.jpg")
+                        if (result.isNotEmpty()) {
+                            Log.d(TAG, "Extracted fields: $result")
+                            onImageCaptured(null, result)
+                        } else {
+                            errorMessage = "No text was extracted. Please try again."
+                            Log.e(TAG, "No text extracted from image.")
+                        }
+                    } catch (e: Exception) {
+                        errorMessage = "Error: ${e.localizedMessage}"
+                        Log.e(TAG, "Error during OCR process", e)
+                    } finally {
+                        isProcessing = false
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -205,11 +224,12 @@ fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, Map<St
 }
 
 @Composable
-fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extractedFields: Map<String, String>) {
+fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extractedFields: Map<String, Any>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Button(
@@ -221,31 +241,25 @@ fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extracted
             Text("Previous")
         }
 
-        capturedImage?.let {
-            Image(
-                bitmap = it.asImageBitmap(),
-                contentDescription = "Captured image",
+        Text("Extracted Fields:", style = MaterialTheme.typography.titleLarge)
+        Text("Partner: ${extractedFields["partner_id"]}")
+        Text("Invoice Date: ${extractedFields["invoice_date"]}")
+
+        Text("Invoice Lines:", style = MaterialTheme.typography.titleMedium)
+
+        (extractedFields["invoice_line_ids"] as? List<Map<String, Any>>)?.forEach { line ->
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
-                    .padding(bottom = 16.dp)
-            )
-        }
-
-        Text(
-            text = "Extracted Fields:",
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-        )
-
-        extractedFields.forEach { (key, value) ->
-            Text(
-                text = "$key: $value",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp)
-            )
+                    .padding(vertical = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text("Product: ${line["name"] ?: "N/A"}")
+                    Text("Quantity: ${line["product_uom_qty"] ?: "N/A"}")
+                    Text("Unit Price: ${line["price_unit"] ?: "N/A"}")
+                    Text("Subtotal: ${line["price_subtotal"] ?: "N/A"}")
+                }
+            }
         }
     }
 }
