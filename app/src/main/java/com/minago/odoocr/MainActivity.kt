@@ -199,7 +199,7 @@ fun CameraScreen(navController: NavController, onImageCaptured: (Bitmap?, Map<St
                 errorMessage = null
                 coroutineScope.launch {
                     try {
-                        val result = InvoiceProcessor.processInvoice(context, "invoice_template.jpg")
+                        val result = InvoiceProcessor.processInvoice(context, "invoice_template_2.png")
                         if (result.isNotEmpty()) {
                             Log.d(TAG, "Extracted fields: $result")
                             onImageCaptured(null, result)
@@ -255,7 +255,8 @@ fun ResultScreen(navController: NavController, capturedImage: Bitmap?, extracted
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     Text("Product: ${line["name"] ?: "N/A"}")
-                    Text("Quantity: ${line["product_uom_qty"] ?: "N/A"}")
+                    Text("Code: ${line["default_code"] ?: "N/A"}")
+                    Text("Quantity: ${line["product_uom_qty"] ?: "N/A"} ${line["uom"] ?: ""}")
                     Text("Unit Price: ${line["price_unit"] ?: "N/A"}")
                     Text("Subtotal: ${line["price_subtotal"] ?: "N/A"}")
                 }

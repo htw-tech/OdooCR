@@ -20,21 +20,16 @@ object InvoiceProcessor {
         return withContext(Dispatchers.Default) {
             val bitmap = loadImageFromAssets(context, fileName)
             if (bitmap != null) {
-                val preprocessedBitmap = preprocessImage(bitmap)
-                val extractedText = performOCR(preprocessedBitmap)
+                val extractedText = performOCR(bitmap)
                 Log.d(TAG, "Full OCR result: \n$extractedText")
                 if (extractedText.isNotEmpty()) {
                     val cleanedText = cleanUpText(extractedText)
                     Log.d(TAG, "Cleaned text: \n$cleanedText")
-                    val invoiceData = extractInvoiceData(cleanedText)
-                    Log.d(TAG, "Extracted invoice data: $invoiceData")
-                    invoiceData
+                    extractInvoiceData(cleanedText)
                 } else {
-                    Log.e(TAG, "No text extracted from OCR")
                     mapOf("error" to "No text extracted")
                 }
             } else {
-                Log.e(TAG, "Failed to load image")
                 mapOf("error" to "Failed to load image")
             }
         }
@@ -47,30 +42,6 @@ object InvoiceProcessor {
             Log.e(TAG, "Error loading image: ${e.message}")
             null
         }
-    }
-
-    private fun preprocessImage(bitmap: Bitmap): Bitmap {
-        val width = bitmap.width
-        val height = bitmap.height
-        val newBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(newBitmap)
-        val paint = Paint()
-        val rect = Rect(0, 0, width, height)
-
-        paint.colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
-        canvas.drawBitmap(bitmap, null, rect, paint)
-
-        paint.colorFilter = ColorMatrixColorFilter(ColorMatrix().apply {
-            set(floatArrayOf(
-                1.5f, 0f, 0f, 0f, -75f,
-                0f, 1.5f, 0f, 0f, -75f,
-                0f, 0f, 1.5f, 0f, -75f,
-                0f, 0f, 0f, 1f, 0f
-            ))
-        })
-        canvas.drawBitmap(newBitmap, null, rect, paint)
-
-        return newBitmap
     }
 
     private suspend fun performOCR(bitmap: Bitmap): String {
@@ -115,35 +86,30 @@ object InvoiceProcessor {
         var currentProduct = mutableMapOf<String, Any>()
         var isProductSection = false
 
-        val partnerInfo = extractPartnerInfo(text)
-        val invoiceDate = extractInvoiceDate(text)
-
         lines.forEach { line ->
             when {
                 line.contains("Désignation", ignoreCase = true) -> isProductSection = true
-                isProductSection && line.contains("Arretée la présente facture", ignoreCase = true) -> isProductSection = false
+                line.contains("Arretée la présente facture", ignoreCase = true) -> isProductSection = false
                 isProductSection -> {
-                    if (line.contains("Référence", ignoreCase = true) && currentProduct.isNotEmpty()) {
-                        invoiceLines.add(currentProduct)
-                        currentProduct = mutableMapOf()
-                    }
                     when {
                         line.startsWith("IDAO", ignoreCase = true) || line.startsWith("HENZO", ignoreCase = true) -> {
-                            currentProduct["default_code"] = line.split(" ").first()
-                            currentProduct["name"] = line.substringAfter(" ")
-                        }
-                        line.contains("Flacons", ignoreCase = true) || line.contains("Unités", ignoreCase = true) -> {
-                            val parts = line.split(" ")
-                            currentProduct["product_uom_qty"] = parts.first().toFloatOrNull() ?: 0f
-                            currentProduct["uom"] = parts.last()
-                        }
-                        line.contains(",") -> {
-                            val parts = line.split(" ")
-                            if (currentProduct["price_unit"] == null) {
-                                currentProduct["price_unit"] = parts.first().replace(",", ".").toFloatOrNull() ?: 0f
-                            } else {
-                                currentProduct["price_subtotal"] = parts.first().replace(" ", "").toFloatOrNull() ?: 0f
+                            if (currentProduct.isNotEmpty()) {
+                                invoiceLines.add(currentProduct)
                             }
+                            currentProduct = mutableMapOf()
+                            val parts = line.split("""\s+""".toRegex(), 2)
+                            currentProduct["default_code"] = parts[0]
+                            currentProduct["name"] = parts.getOrNull(1) ?: ""
+                        }
+                        line.matches("""^\d+\s+(Flacons|Unités)""".toRegex(RegexOption.IGNORE_CASE)) -> {
+                            val parts = line.split("""\s+""".toRegex())
+                            currentProduct["product_uom_qty"] = parts[0].toFloatOrNull() ?: 0f
+                            currentProduct["uom"] = parts[1]
+                        }
+                        line.matches("""^\d+([.,]\d+)?\s+\d+([.,]\d+)?$""".toRegex()) -> {
+                            val parts = line.split("""\s+""".toRegex())
+                            currentProduct["price_unit"] = parts[0].replace(",", ".").toFloatOrNull() ?: 0f
+                            currentProduct["price_subtotal"] = parts[1].replace(",", ".").toFloatOrNull() ?: 0f
                         }
                     }
                 }
@@ -153,10 +119,12 @@ object InvoiceProcessor {
             invoiceLines.add(currentProduct)
         }
 
+        Log.d(TAG, "Extracted invoice lines: $invoiceLines")
+
         return mapOf(
             "invoice_line_ids" to invoiceLines,
-            "partner_id" to partnerInfo,
-            "invoice_date" to invoiceDate
+            "partner_id" to extractPartnerInfo(text),
+            "invoice_date" to extractInvoiceDate(text)
         )
     }
 
@@ -166,12 +134,14 @@ object InvoiceProcessor {
     }
 
     private fun extractInvoiceDate(text: String): String {
-        val dateRegex = "\\b\\d{2}/\\d{2}/\\d{2}\\b".toRegex()
+        val dateRegex = "Date\\s*:\\s*(\\d{2}/\\d{2}/\\d{2})".toRegex(RegexOption.IGNORE_CASE)
         val match = dateRegex.find(text)
         return if (match != null) {
-            val dateFormat = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
-            val date = dateFormat.parse(match.value)
-            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date ?: Date())
+            val dateStr = match.groupValues[1]
+            val inputFormat = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val date = inputFormat.parse(dateStr)
+            outputFormat.format(date ?: Date())
         } else {
             ""
         }
