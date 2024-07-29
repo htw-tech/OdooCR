@@ -2,10 +2,8 @@ package com.minago.odoocr
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
-import org.json.JSONArray
 import org.json.JSONObject
-import java.text.ParseException
+import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,22 +24,29 @@ class InvoiceProcessor(context: Context) {
         val invoiceLines = mutableListOf<Map<String, Any>>()
         var partnerId = ""
         var invoiceDate = ""
+        var invoiceNumber = ""
 
         for (line in lines) {
             when {
-                line.contains("CNTS") -> partnerId = line.trim()
+                line.contains("CNTS") || line.contains("N'DJAMENA") -> partnerId = "CNTS N'DJAMENA"
                 line.contains("Date") -> invoiceDate = extractDate(line)
+                line.contains("Numéro") -> invoiceNumber = extractInvoiceNumber(line)
                 line.matches(Regex("^[A-Z]+\\d+.*")) -> {
                     val parts = line.split(Regex("\\s+"))
                     if (parts.size >= 6) {
-                        invoiceLines.add(mapOf(
-                            "default_code" to parts[0],
-                            "name" to parts.subList(1, parts.size - 4).joinToString(" "),
-                            "product_uom_qty" to (parts[parts.size - 4].replace(",", ".").toDoubleOrNull() ?: 0.0),
-                            "uom" to parts[parts.size - 3],
-                            "price_unit" to (parts[parts.size - 2].replace(",", ".").toDoubleOrNull() ?: 0.0),
-                            "price_subtotal" to (parts.last().replace(",", ".").toDoubleOrNull() ?: 0.0)
-                        ))
+                        invoiceLines.add(
+                            mapOf(
+                                "default_code" to parts[0],
+                                "name" to parts.subList(1, parts.size - 4).joinToString(" "),
+                                "product_uom_qty" to (parts[parts.size - 4].replace(",", ".")
+                                    .toDoubleOrNull() ?: 0.0),
+                                "uom" to parts[parts.size - 3],
+                                "price_unit" to (parts[parts.size - 2].replace(",", ".")
+                                    .toDoubleOrNull() ?: 0.0),
+                                "price_subtotal" to (parts.last().replace(",", ".").toDoubleOrNull()
+                                    ?: 0.0)
+                            )
+                        )
                     }
                 }
             }
@@ -51,19 +56,32 @@ class InvoiceProcessor(context: Context) {
         jsonObject.put("invoice_line_ids", JSONArray(invoiceLines))
         jsonObject.put("partner_id", partnerId)
         jsonObject.put("invoice_date", invoiceDate)
+        jsonObject.put("invoice_number", invoiceNumber)
 
-        return jsonObject.toString(4)  // Use 4 spaces for indentation in JSON output
+        return jsonObject.toString(4)
     }
 
     private fun extractDate(line: String): String {
-        val datePart = line.split(":").lastOrNull()?.trim() ?: return ""
-        return try {
-            val dateFormat = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
-            val parsedDate = dateFormat.parse(datePart)
-            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(parsedDate)
-        } catch (e: ParseException) {
-            Log.e("InvoiceProcessor", "Error parsing date: $datePart", e)
+        val datePattern = "\\b\\d{2}/\\d{2}/\\d{2}\\b".toRegex()
+        val match = datePattern.find(line)
+        return if (match != null) {
+            val datePart = match.value
+            try {
+                val inputFormat = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val date = inputFormat.parse(datePart)
+                outputFormat.format(date)
+            } catch (e: Exception) {
+                ""
+            }
+        } else {
             ""
         }
+    }
+
+    private fun extractInvoiceNumber(line: String): String {
+        val numberPattern = "\\b\\d+\\b".toRegex()
+        val match = numberPattern.find(line)
+        return match?.value ?: ""
     }
 }

@@ -36,10 +36,10 @@ class MainActivity : AppCompatActivity() {
                 invoiceProcessor.processInvoice(bitmap)
             }
 
-            resultTextView.text = getString(R.string.result_text, result)
+            resultTextView.text = "Result: $result"
         } catch (e: Exception) {
             Log.e("MainActivity", "Error processing invoice", e)
-            resultTextView.text = getString(R.string.error_text, e.message)
+            resultTextView.text = "Error processing invoice: ${e.message}"
         }
     }
 }
