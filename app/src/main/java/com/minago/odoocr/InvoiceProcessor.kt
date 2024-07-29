@@ -28,7 +28,6 @@ class InvoiceProcessor(context: Context) {
 
         for (line in lines) {
             when {
-                line.contains("CNTS") || line.contains("N'DJAMENA") -> partnerId = "CNTS N'DJAMENA"
                 line.contains("Date") -> invoiceDate = extractDate(line)
                 line.contains("Numéro") -> invoiceNumber = extractInvoiceNumber(line)
                 line.matches(Regex("^[A-Z]+\\d+.*")) -> {
@@ -36,11 +35,9 @@ class InvoiceProcessor(context: Context) {
                     if (parts.size >= 6) {
                         invoiceLines.add(
                             mapOf(
-                                "default_code" to parts[0],
                                 "name" to parts.subList(1, parts.size - 4).joinToString(" "),
                                 "product_uom_qty" to (parts[parts.size - 4].replace(",", ".")
                                     .toDoubleOrNull() ?: 0.0),
-                                "uom" to parts[parts.size - 3],
                                 "price_unit" to (parts[parts.size - 2].replace(",", ".")
                                     .toDoubleOrNull() ?: 0.0),
                                 "price_subtotal" to (parts.last().replace(",", ".").toDoubleOrNull()
@@ -54,7 +51,6 @@ class InvoiceProcessor(context: Context) {
 
         val jsonObject = JSONObject()
         jsonObject.put("invoice_line_ids", JSONArray(invoiceLines))
-        jsonObject.put("partner_id", partnerId)
         jsonObject.put("invoice_date", invoiceDate)
         jsonObject.put("invoice_number", invoiceNumber)
 
