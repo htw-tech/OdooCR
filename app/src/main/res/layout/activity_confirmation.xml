@@ -54,19 +54,27 @@
         android:textSize="16sp"
         android:paddingBottom="8dp"/>
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/listDivider"/>
+
     <TextView
         android:id="@+id/tvBarcode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Product Barcode:"
-        android:textSize="16sp"
-        android:paddingBottom="8dp"/>
+        android:textSize="14sp"
+        android:textColor="@android:color/holo_orange_light"
+        android:paddingTop="8dp"
+        android:visibility="gone"/>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center">
+        android:gravity="center"
+        android:paddingTop="16dp">
 
         <Button
             android:id="@+id/btnConfirm"

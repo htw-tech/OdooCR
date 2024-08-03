@@ -63,7 +63,13 @@ class ConfirmationActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val productName = intent.getStringExtra("product") ?: ""
             val productBarcode = searchProductBarcode(productName)
-            tvBarcode.text = "Product Barcode: $productBarcode"
+            if (productBarcode.isNotEmpty()) {
+                tvBarcode.text = "Product Barcode: $productBarcode"
+                tvBarcode.visibility = TextView.VISIBLE
+            } else {
+                tvBarcode.text = "No barcode found for the product $productName"
+                tvBarcode.visibility = TextView.VISIBLE
+            }
         }
     }
 
@@ -125,13 +131,13 @@ class ConfirmationActivity : AppCompatActivity() {
 
                 if (result is Array<*>) {
                     val product = result.firstOrNull() as? Map<*, *>
-                    product?.get("barcode") as? String ?: "Barcode not found"
+                    product?.get("barcode") as? String ?: ""
                 } else {
-                    "Barcode not found"
+                    ""
                 }
             } catch (e: Exception) {
                 Log.e("ConfirmationActivity", "Error searching product barcode: $productName", e)
-                "Error fetching barcode"
+                ""
             }
         }
     }
