@@ -50,7 +50,7 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnEnterDataManually).setOnClickListener {
-            // We'll implement this later
+            startActivity(Intent(this, ManualEntryActivity::class.java))
         }
     }
 
