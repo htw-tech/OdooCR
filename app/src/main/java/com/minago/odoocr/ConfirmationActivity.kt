@@ -2,9 +2,9 @@ package com.minago.odoocr
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.MenuItem
 import android.widget.Button
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class ConfirmationActivity : AppCompatActivity() {
@@ -21,6 +21,8 @@ class ConfirmationActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_confirmation)
+
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         initViews()
         displayData()
@@ -59,14 +61,21 @@ class ConfirmationActivity : AppCompatActivity() {
 
     private fun sendToOdoo() {
         // TODO: Implement actual Odoo API call
-
-        // For now, we'll simulate a successful transmission
         val invoiceNumber = intent.getStringExtra("invoiceNumber")
-
         val intent = Intent(this, SuccessActivity::class.java).apply {
             putExtra("invoiceNumber", invoiceNumber)
         }
         startActivity(intent)
-        finishAffinity() // This will close all activities and return to the first screen
+        finishAffinity()
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                finish()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 }

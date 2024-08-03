@@ -4,9 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
-import androidx.appcompat.app.AppCompatActivity
 import android.widget.Toast
-
+import androidx.appcompat.app.AppCompatActivity
 
 class ManualEntryActivity : AppCompatActivity() {
 
@@ -17,6 +16,7 @@ class ManualEntryActivity : AppCompatActivity() {
     private lateinit var etPrice: EditText
     private lateinit var etDate: EditText
     private lateinit var btnSubmit: Button
+    private lateinit var btnBack: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,37 +34,65 @@ class ManualEntryActivity : AppCompatActivity() {
         etPrice = findViewById(R.id.etPrice)
         etDate = findViewById(R.id.etDate)
         btnSubmit = findViewById(R.id.btnSubmit)
+        btnBack = findViewById(R.id.btnBack)
     }
 
     private fun setupListeners() {
         btnSubmit.setOnClickListener {
             submitData()
         }
+
+        btnBack.setOnClickListener {
+            finish()
+        }
     }
 
     private fun submitData() {
-        val invoiceNumber = etInvoiceNumber.text.toString()
-        val customer = etCustomer.text.toString()
-        val product = etProduct.text.toString()
-        val quantity = etQuantity.text.toString()
-        val price = etPrice.text.toString()
-        val date = etDate.text.toString()
+        if (validateInputs()) {
+            val intent = Intent(this, ConfirmationActivity::class.java).apply {
+                putExtra("invoiceNumber", etInvoiceNumber.text.toString())
+                putExtra("customer", etCustomer.text.toString())
+                putExtra("product", etProduct.text.toString())
+                putExtra("quantity", etQuantity.text.toString())
+                putExtra("price", etPrice.text.toString())
+                putExtra("date", etDate.text.toString())
+            }
+            startActivity(intent)
+        }
+    }
 
-        if (invoiceNumber.isEmpty() || customer.isEmpty() || product.isEmpty() ||
-            quantity.isEmpty() || price.isEmpty() || date.isEmpty()
-        ) {
-            Toast.makeText(this, "All fields are mandatory", Toast.LENGTH_SHORT).show()
-            return
+    private fun validateInputs(): Boolean {
+        var isValid = true
+
+        if (etInvoiceNumber.text.toString().isEmpty()) {
+            etInvoiceNumber.error = "Invoice number is required"
+            isValid = false
+        }
+        if (etCustomer.text.toString().isEmpty()) {
+            etCustomer.error = "Customer is required"
+            isValid = false
+        }
+        if (etProduct.text.toString().isEmpty()) {
+            etProduct.error = "Product is required"
+            isValid = false
+        }
+        if (etQuantity.text.toString().isEmpty()) {
+            etQuantity.error = "Quantity is required"
+            isValid = false
+        }
+        if (etPrice.text.toString().isEmpty()) {
+            etPrice.error = "Price is required"
+            isValid = false
+        }
+        if (etDate.text.toString().isEmpty()) {
+            etDate.error = "Date is required"
+            isValid = false
         }
 
-        val intent = Intent(this, ConfirmationActivity::class.java).apply {
-            putExtra("invoiceNumber", invoiceNumber)
-            putExtra("customer", customer)
-            putExtra("product", product)
-            putExtra("quantity", quantity)
-            putExtra("price", price)
-            putExtra("date", date)
+        if (!isValid) {
+            Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
         }
-        startActivity(intent)
+
+        return isValid
     }
 }
