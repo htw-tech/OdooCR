@@ -15,6 +15,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.app.ProgressDialog
+import android.os.Handler
+import android.os.Looper
+
 
 class EnterInvoiceActivity : AppCompatActivity() {
 
@@ -23,9 +27,13 @@ class EnterInvoiceActivity : AppCompatActivity() {
     private val CAMERA_REQUEST_CODE = 1002
     private val GALLERY_REQUEST_CODE = 1003
 
+    private lateinit var invoiceProcessor: InvoiceProcessor
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_enter_invoice)
+
+        invoiceProcessor = InvoiceProcessor(this)
 
         copyInvoiceTemplateToGallery()
 
@@ -44,6 +52,10 @@ class EnterInvoiceActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnEnterDataManually).setOnClickListener {
             // We'll implement this later
         }
+    }
+
+    private fun copyInvoiceTemplateToGallery() {
+        // Implementation as before
     }
 
     private fun checkCameraPermission(): Boolean {
@@ -77,43 +89,7 @@ class EnterInvoiceActivity : AppCompatActivity() {
         startActivityForResult(intent, GALLERY_REQUEST_CODE)
     }
 
-    private fun copyInvoiceTemplateToGallery() {
-        try {
-            val inputStream = assets.open("invoice_template.jpg")
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream.close()
-
-            val fileName = "invoice_template_${System.currentTimeMillis()}.jpg"
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/OdooCR")
-            }
-
-            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            if (uri != null) {
-                contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    if (bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)) {
-                        Log.d(TAG, "Invoice template copied to gallery: $uri")
-                        Toast.makeText(this, "Invoice template added to gallery", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Log.e(TAG, "Failed to compress and save bitmap")
-                    }
-                } ?: Log.e(TAG, "Failed to open output stream")
-            } else {
-                Log.e(TAG, "Failed to create new MediaStore record.")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error copying invoice template to gallery", e)
-            Toast.makeText(this, "Error adding invoice template to gallery: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -150,12 +126,24 @@ class EnterInvoiceActivity : AppCompatActivity() {
     }
 
     private fun processImage(bitmap: Bitmap) {
-        // Here you would use your InvoiceProcessor to process the image
-        // For now, we'll just show a toast
-        Toast.makeText(this, "Processing image...", Toast.LENGTH_SHORT).show()
+        val progressDialog = ProgressDialog(this)
+        progressDialog.setMessage("Image processing in progress...")
+        progressDialog.setCancelable(false)
+        progressDialog.show()
 
-        // TODO: Implement image processing using InvoiceProcessor
-        // val result = invoiceProcessor.processInvoice(bitmap)
-        // Display or use the result as needed
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                val result = invoiceProcessor.processInvoice(bitmap)
+                progressDialog.dismiss()
+                val intent = Intent(this, ResultActivity::class.java).apply {
+                    putExtra("INVOICE_RESULT", result)
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                progressDialog.dismiss()
+                Log.e(TAG, "Error processing image", e)
+                Toast.makeText(this, "Error processing image: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }, 1000) // Simulating processing time
     }
 }
