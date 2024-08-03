@@ -49,6 +49,12 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/DEPENDENCIES.txt"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
         }
     }
 
@@ -93,6 +99,7 @@ dependencies {
 
     // OpenCV dependency
     implementation("org.opencv:opencv:4.10.0-kleidicv")
+    implementation ("org.apache.xmlrpc:xmlrpc-client:3.1.3")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
@@ -102,6 +109,15 @@ dependencies {
 
     // Navigation Compose dependency
     implementation(libs.androidx.navigation.compose)
+
+    implementation ("io.ktor:ktor-client-core:1.6.7")
+    implementation ("io.ktor:ktor-client-cio:1.6.7")
+    implementation ("io.ktor:ktor-client-serialization:1.6.7")
+    implementation ("io.ktor:ktor-client-logging:1.6.7")
+    implementation ("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
+
+
+    implementation ("fr.turri:aXMLRPC:1.12.0")
 
     // Test dependencies
     testImplementation(libs.junit)
