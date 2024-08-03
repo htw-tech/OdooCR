@@ -11,7 +11,9 @@ lifecycleRuntimeKtx = "2.8.4"
 activityCompose = "1.9.1"
 composeBom = "2024.06.00"
 lifecycleRuntimeKtxVersion = "2.8.4"
+opencv = "4.10.0-kleidicv"
 opencvAndroid = "4.5.1"
+renderscript = "1.0.0"
 tessTwo = "9.1.0"
 textRecognitionVersion = "16.0.0"
 
@@ -22,6 +24,7 @@ androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 #noinspection SimilarGradleDependency
 androidx-lifecycle-runtime-ktx-v240 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtxVersion" }
+androidx-renderscript = { module = "androidx.renderscript:renderscript", version.ref = "renderscript" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -39,6 +42,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version = "2.7.7" }
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "textRecognitionVersion" }
+opencv = { module = "org.opencv:opencv", version.ref = "opencv" }
 opencv-android = { group = "org.opencv", name = "opencv-android", version.ref = "opencvAndroid" }
 tess-two = { module = "com.rmtheis:tess-two", version.ref = "tessTwo" }
 
