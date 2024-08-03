@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
+
 
 class ManualEntryActivity : AppCompatActivity() {
 
@@ -33,6 +35,7 @@ class ManualEntryActivity : AppCompatActivity() {
         etDate = findViewById(R.id.etDate)
         btnSubmit = findViewById(R.id.btnSubmit)
     }
+
     private fun setupListeners() {
         btnSubmit.setOnClickListener {
             submitData()
@@ -46,6 +49,13 @@ class ManualEntryActivity : AppCompatActivity() {
         val quantity = etQuantity.text.toString()
         val price = etPrice.text.toString()
         val date = etDate.text.toString()
+
+        if (invoiceNumber.isEmpty() || customer.isEmpty() || product.isEmpty() ||
+            quantity.isEmpty() || price.isEmpty() || date.isEmpty()
+        ) {
+            Toast.makeText(this, "All fields are mandatory", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         val intent = Intent(this, ConfirmationActivity::class.java).apply {
             putExtra("invoiceNumber", invoiceNumber)
