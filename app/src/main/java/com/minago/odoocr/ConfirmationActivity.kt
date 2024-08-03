@@ -1,5 +1,6 @@
 package com.minago.odoocr
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
@@ -8,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 
 class ConfirmationActivity : AppCompatActivity() {
 
+    private lateinit var tvInvoiceNumber: TextView
     private lateinit var tvCustomer: TextView
     private lateinit var tvProduct: TextView
     private lateinit var tvQuantity: TextView
@@ -26,6 +28,7 @@ class ConfirmationActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
+        tvInvoiceNumber = findViewById(R.id.tvInvoiceNumber)
         tvCustomer = findViewById(R.id.tvCustomer)
         tvProduct = findViewById(R.id.tvProduct)
         tvQuantity = findViewById(R.id.tvQuantity)
@@ -36,6 +39,7 @@ class ConfirmationActivity : AppCompatActivity() {
     }
 
     private fun displayData() {
+        tvInvoiceNumber.text = "Invoice Number: ${intent.getStringExtra("invoiceNumber")}"
         tvCustomer.text = "Customer: ${intent.getStringExtra("customer")}"
         tvProduct.text = "Product: ${intent.getStringExtra("product")}"
         tvQuantity.text = "Quantity: ${intent.getStringExtra("quantity")}"
@@ -54,9 +58,15 @@ class ConfirmationActivity : AppCompatActivity() {
     }
 
     private fun sendToOdoo() {
-        // TODO: Implement Odoo API call
-        Toast.makeText(this, "Data sent to Odoo", Toast.LENGTH_SHORT).show()
-        // Navigate back to main screen or show success message
-        finish()
+        // TODO: Implement actual Odoo API call
+
+        // For now, we'll simulate a successful transmission
+        val invoiceNumber = intent.getStringExtra("invoiceNumber")
+
+        val intent = Intent(this, SuccessActivity::class.java).apply {
+            putExtra("invoiceNumber", invoiceNumber)
+        }
+        startActivity(intent)
+        finishAffinity() // This will close all activities and return to the first screen
     }
 }

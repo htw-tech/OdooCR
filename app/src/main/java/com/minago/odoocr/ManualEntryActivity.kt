@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 
 class ManualEntryActivity : AppCompatActivity() {
 
+    private lateinit var etInvoiceNumber: EditText
     private lateinit var etCustomer: EditText
     private lateinit var etProduct: EditText
     private lateinit var etQuantity: EditText
@@ -24,6 +25,7 @@ class ManualEntryActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
+        etInvoiceNumber = findViewById(R.id.etInvoiceNumber)
         etCustomer = findViewById(R.id.etCustomer)
         etProduct = findViewById(R.id.etProduct)
         etQuantity = findViewById(R.id.etQuantity)
@@ -31,7 +33,6 @@ class ManualEntryActivity : AppCompatActivity() {
         etDate = findViewById(R.id.etDate)
         btnSubmit = findViewById(R.id.btnSubmit)
     }
-
     private fun setupListeners() {
         btnSubmit.setOnClickListener {
             submitData()
@@ -39,6 +40,7 @@ class ManualEntryActivity : AppCompatActivity() {
     }
 
     private fun submitData() {
+        val invoiceNumber = etInvoiceNumber.text.toString()
         val customer = etCustomer.text.toString()
         val product = etProduct.text.toString()
         val quantity = etQuantity.text.toString()
@@ -46,6 +48,7 @@ class ManualEntryActivity : AppCompatActivity() {
         val date = etDate.text.toString()
 
         val intent = Intent(this, ConfirmationActivity::class.java).apply {
+            putExtra("invoiceNumber", invoiceNumber)
             putExtra("customer", customer)
             putExtra("product", product)
             putExtra("quantity", quantity)
