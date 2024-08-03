@@ -29,10 +29,15 @@ class ConfirmationActivity : AppCompatActivity() {
     private lateinit var btnConfirm: Button
     private lateinit var btnEdit: Button
 
+    private val TAG = "ConfirmationActivity"
+    private val ODOO_URL = "http://192.168.178.114:8016"
+    private val DB = "odoo"
+    private val ADMIN_UID = 2
+    private val ADMIN_PASSWORD = "admin"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_confirmation)
-
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         initViews()
@@ -53,219 +58,167 @@ class ConfirmationActivity : AppCompatActivity() {
     }
 
     private fun displayData() {
-        tvInvoiceNumber.text = "Invoice Number: ${intent.getStringExtra("invoiceNumber")}"
-        tvCustomer.text = "Customer: ${intent.getStringExtra("customer")}"
-        tvProduct.text = "Product: ${intent.getStringExtra("product")}"
-        tvQuantity.text = "Quantity: ${intent.getStringExtra("quantity")}"
-        tvPrice.text = "Price: ${intent.getStringExtra("price")}"
-        tvDate.text = "Date: ${intent.getStringExtra("date")}"
+        intent.apply {
+            tvInvoiceNumber.text = "Invoice Number: ${getStringExtra("invoiceNumber")}"
+            tvCustomer.text = "Customer: ${getStringExtra("customer")}"
+            tvProduct.text = "Product: ${getStringExtra("product")}"
+            tvQuantity.text = "Quantity: ${getStringExtra("quantity")}"
+            tvPrice.text = "Price: ${getStringExtra("price")}"
+            tvDate.text = "Date: ${getStringExtra("date")}"
+        }
 
         lifecycleScope.launch {
             val productName = intent.getStringExtra("product") ?: ""
             val productBarcode = searchProductBarcode(productName)
-            if (productBarcode.isNotEmpty()) {
-                tvBarcode.text = "Product Barcode: $productBarcode"
-                tvBarcode.visibility = TextView.VISIBLE
+            tvBarcode.text = if (productBarcode.isNotEmpty()) {
+                "Product Barcode: $productBarcode"
             } else {
-                tvBarcode.text = "No barcode found for the product $productName"
-                tvBarcode.visibility = TextView.VISIBLE
+                "No barcode found for the product $productName"
             }
+            tvBarcode.visibility = TextView.VISIBLE
         }
     }
 
     private fun setupListeners() {
-        btnConfirm.setOnClickListener {
-            sendToOdoo()
-        }
-
-        btnEdit.setOnClickListener {
-            finish()
-        }
-    }
-
-    private suspend fun searchOdooRecord(model: String, name: String): Int? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val url = URL("http://192.168.178.114:8016/xmlrpc/2/object")
-                val client = XMLRPCClient(url)
-                val db = "odoo"
-                val uid = 2 // Admin user ID
-                val password = "admin"
-
-                val result = client.call(
-                    "execute_kw", db, uid, password, model, "name_search",
-                    listOf(name), mapOf("limit" to 1)
-                )
-
-                if (result is Array<*>) {
-                    val record = result.firstOrNull() as? Array<*>
-                    record?.get(0) as? Int
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                Log.e("ConfirmationActivity", "Error searching $model: $name", e)
-                null
-            }
-        }
-    }
-
-    private suspend fun searchProductBarcode(productName: String): String {
-        return withContext(Dispatchers.IO) {
-            try {
-                val url = URL("http://192.168.178.114:8016/xmlrpc/2/object")
-                val client = XMLRPCClient(url)
-                val db = "odoo"
-                val uid = 2 // Admin user ID
-                val password = "admin"
-
-                val result = client.call(
-                    "execute_kw", db, uid, password, "product.product", "search_read",
-                    listOf(
-                        listOf(
-                            listOf("name", "=", productName)
-                        )
-                    ),
-                    mapOf("fields" to listOf("barcode"), "limit" to 1)
-                )
-
-                if (result is Array<*>) {
-                    val product = result.firstOrNull() as? Map<*, *>
-                    product?.get("barcode") as? String ?: ""
-                } else {
-                    ""
-                }
-            } catch (e: Exception) {
-                Log.e("ConfirmationActivity", "Error searching product barcode: $productName", e)
-                ""
-            }
-        }
-    }
-
-    private suspend fun createOdooRecord(model: String, values: Map<String, Any?>): Int? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val url = URL("http://192.168.178.114:8016/xmlrpc/2/object")
-                val client = XMLRPCClient(url)
-                val db = "odoo"
-                val uid = 2 // Admin user ID
-                val password = "admin"
-
-                val result = client.call(
-                    "execute_kw", db, uid, password, model, "create",
-                    listOf(values)
-                )
-
-                result as? Int
-            } catch (e: Exception) {
-                Log.e("ConfirmationActivity", "Error creating $model: $values", e)
-                null
-            }
-        }
+        btnConfirm.setOnClickListener { sendToOdoo() }
+        btnEdit.setOnClickListener { finish() }
     }
 
     private fun sendToOdoo() {
         lifecycleScope.launch {
             try {
-                val url = URL("http://192.168.178.114:8016/xmlrpc/2/common")
-                val client = XMLRPCClient(url)
-
-                val db = "odoo"
-                val username = "mh.rouissi@gmail.com"
-                val password = "admin"
-
-                // Authenticate and get uid
-                val uid = withContext(Dispatchers.IO) {
-                    client.call("authenticate", db, username, password, emptyList<Any>()) as Int
-                }
-
-                Log.d("ConfirmationActivity", "Authenticated UID: $uid")
-
-                // Validate and format the date
-                val dateString = intent.getStringExtra("date")
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                val date = dateString?.let {
-                    try {
-                        dateFormat.parse(it)
-                        it
-                    } catch (e: Exception) {
-                        Log.e("ConfirmationActivity", "Invalid date format: $it", e)
-                        null
-                    }
-                }
-
-                if (date == null) {
-                    throw Exception("Invalid date format. Please use 'yyyy-MM-dd'.")
-                }
-
-                // Search for customer and product IDs
+                val uid = authenticateUser()
+                val date = validateDate(intent.getStringExtra("date"))
                 val customerName = intent.getStringExtra("customer") ?: ""
                 val productName = intent.getStringExtra("product") ?: ""
+                val userInvoiceNumber = intent.getStringExtra("invoiceNumber") ?: ""
 
-                var customerId = searchOdooRecord("res.partner", customerName)
-                if (customerId == null) {
-                    // Create new customer if not found
-                    customerId = createOdooRecord("res.partner", mapOf("name" to customerName))
-                    if (customerId == null) {
-                        throw Exception("Failed to create customer: $customerName")
-                    }
-                }
+                val customerId = getOrCreateCustomer(customerName)
+                val productId = getOrCreateProduct(productName)
+                val productBarcode = searchProductBarcode(productName)
 
-                var productId = searchOdooRecord("product.product", productName)
-                if (productId == null) {
-                    // Create new product if not found
-                    productId = createOdooRecord("product.product", mapOf("name" to productName))
-                    if (productId == null) {
-                        throw Exception("Failed to create product: $productName")
-                    }
-                }
+                Log.d(TAG, "Invoice Data - Customer: $customerId, Product: $productId, Barcode: $productBarcode, Quantity: ${intent.getStringExtra("quantity")}, Price: ${intent.getStringExtra("price")}, Date: $date, Invoice Number: $userInvoiceNumber")
 
-                // Log the data to be sent
-                Log.d("ConfirmationActivity", "Invoice Data - Customer: $customerId, Product: $productId, Quantity: ${intent.getStringExtra("quantity")}, Price: ${intent.getStringExtra("price")}, Date: $date")
+                val invoiceId = createInvoice(uid, customerId, productId, productBarcode, date, userInvoiceNumber)
 
-                // Proceed with creating the invoice
-                val result = withContext(Dispatchers.IO) {
-                    val url = URL("http://192.168.178.114:8016/xmlrpc/2/object")
-                    val client = XMLRPCClient(url)
+                Log.d(TAG, "Invoice created with ID: $invoiceId")
 
-                    val model = "account.move"
-                    val method = "create"
-
-                    val invoiceVals = mapOf(
-                        "move_type" to "out_invoice",
-                        "partner_id" to customerId,
-                        "invoice_date" to date,
-                        "invoice_line_ids" to listOf(listOf(
-                            0, 0, mapOf(
-                                "product_id" to productId,
-                                "quantity" to intent.getStringExtra("quantity")?.toDoubleOrNull(),
-                                "price_unit" to intent.getStringExtra("price")?.toDoubleOrNull()
-                            )
-                        ))
-                    )
-
-                    // Log the data being sent to Odoo
-                    Log.d("ConfirmationActivity", "Invoice Vals: $invoiceVals")
-
-                    client.call("execute_kw", db, uid, password, model, method, listOf(invoiceVals))
-                }
-
-                Log.d("ConfirmationActivity", "Odoo Response: $result")
-
-                if (result is Int) {
-                    val intent = Intent(this@ConfirmationActivity, SuccessActivity::class.java).apply {
-                        putExtra("invoiceNumber", result.toString())
-                    }
-                    startActivity(intent)
-                    finishAffinity()
-                } else {
-                    throw Exception("Invoice creation failed: Unexpected response")
-                }
+                navigateToSuccessActivity(userInvoiceNumber)
             } catch (e: Exception) {
-                Log.e("ConfirmationActivity", "Error creating invoice", e)
+                Log.e(TAG, "Error creating invoice", e)
                 Toast.makeText(this@ConfirmationActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private suspend fun authenticateUser(): Int = withContext(Dispatchers.IO) {
+        val url = URL("$ODOO_URL/xmlrpc/2/common")
+        val client = XMLRPCClient(url)
+        client.call("authenticate", DB, "mh.rouissi@gmail.com", ADMIN_PASSWORD, emptyList<Any>()) as Int
+    }
+
+    private fun validateDate(dateString: String?): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        return dateString?.let {
+            try {
+                dateFormat.parse(it)
+                it
+            } catch (e: Exception) {
+                Log.e(TAG, "Invalid date format: $it", e)
+                throw IllegalArgumentException("Invalid date format. Please use 'yyyy-MM-dd'.")
+            }
+        } ?: throw IllegalArgumentException("Date is required.")
+    }
+
+    private suspend fun getOrCreateCustomer(customerName: String): Int = withContext(Dispatchers.IO) {
+        searchOdooRecord("res.partner", customerName) ?: createOdooRecord("res.partner", mapOf("name" to customerName))
+        ?: throw Exception("Failed to create customer: $customerName")
+    }
+
+    private suspend fun getOrCreateProduct(productName: String): Int = withContext(Dispatchers.IO) {
+        searchOdooRecord("product.product", productName) ?: createOdooRecord("product.product", mapOf("name" to productName))
+        ?: throw Exception("Failed to create product: $productName")
+    }
+
+    private suspend fun searchOdooRecord(model: String, name: String): Int? = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("$ODOO_URL/xmlrpc/2/object")
+            val client = XMLRPCClient(url)
+            val result = client.call(
+                "execute_kw", DB, ADMIN_UID, ADMIN_PASSWORD, model, "name_search",
+                listOf(name), mapOf("limit" to 1)
+            )
+            if (result is Array<*>) {
+                val record = result.firstOrNull() as? Array<*>
+                record?.get(0) as? Int
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching $model: $name", e)
+            null
+        }
+    }
+
+    private suspend fun createOdooRecord(model: String, values: Map<String, Any?>): Int? = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("$ODOO_URL/xmlrpc/2/object")
+            val client = XMLRPCClient(url)
+            client.call("execute_kw", DB, ADMIN_UID, ADMIN_PASSWORD, model, "create", listOf(values)) as? Int
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating $model: $values", e)
+            null
+        }
+    }
+
+    private suspend fun searchProductBarcode(productName: String): String = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("$ODOO_URL/xmlrpc/2/object")
+            val client = XMLRPCClient(url)
+            val result = client.call(
+                "execute_kw", DB, ADMIN_UID, ADMIN_PASSWORD, "product.product", "search_read",
+                listOf(listOf(listOf("name", "=", productName))),
+                mapOf("fields" to listOf("barcode"), "limit" to 1)
+            )
+            if (result is Array<*>) {
+                val product = result.firstOrNull() as? Map<*, *>
+                product?.get("barcode") as? String ?: ""
+            } else ""
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching product barcode: $productName", e)
+            ""
+        }
+    }
+
+    private suspend fun createInvoice(uid: Int, customerId: Int, productId: Int, productBarcode: String, date: String, invoiceNumber: String): Int = withContext(Dispatchers.IO) {
+        val url = URL("$ODOO_URL/xmlrpc/2/object")
+        val client = XMLRPCClient(url)
+
+        val invoiceVals = mapOf(
+            "move_type" to "out_invoice",
+            "partner_id" to customerId,
+            "invoice_date" to date,
+            "name" to invoiceNumber,  // This sets the invoice number
+            "invoice_line_ids" to listOf(listOf(
+                0, 0, mapOf(
+                    "product_id" to productId,
+                    "quantity" to intent.getStringExtra("quantity")?.toDoubleOrNull(),
+                    "price_unit" to intent.getStringExtra("price")?.toDoubleOrNull(),
+                    "barcode_scan" to productBarcode
+                )
+            ))
+        )
+
+        Log.d(TAG, "Invoice Vals: $invoiceVals")
+
+        val result = client.call("execute_kw", DB, uid, ADMIN_PASSWORD, "account.move", "create", listOf(invoiceVals))
+        result as? Int ?: throw Exception("Invoice creation failed: Unexpected response")
+    }
+
+    private fun navigateToSuccessActivity(invoiceNumber: String) {
+        val intent = Intent(this@ConfirmationActivity, SuccessActivity::class.java).apply {
+            putExtra("invoiceNumber", invoiceNumber)
+        }
+        startActivity(intent)
+        finishAffinity()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
