@@ -6,8 +6,14 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import android.content.Intent
 
+/*! \class SuccessActivity
+    \brief Activity to display a success message after an invoice is successfully transmitted.
+ */
 class SuccessActivity : AppCompatActivity() {
 
+    /*! \brief Called when the activity is starting.
+        \param savedInstanceState If the activity is being re-initialized after previously being shut down then this Bundle contains the data it most recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_success)
