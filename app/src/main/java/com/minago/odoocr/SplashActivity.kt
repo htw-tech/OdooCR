@@ -7,12 +7,17 @@ import android.os.Looper
 import android.view.animation.AnimationUtils
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import android.view.animation.Animation
 
+/*! \class SplashActivity
+    \brief Activity that displays a splash screen with animations before transitioning to the main activity.
+ */
 class SplashActivity : AppCompatActivity() {
 
     private val SPLASH_DELAY: Long = 2500
 
+    /*! \brief Called when the activity is starting.
+        \param savedInstanceState If the activity is being re-initialized after previously being shut down then this Bundle contains the data it most recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
