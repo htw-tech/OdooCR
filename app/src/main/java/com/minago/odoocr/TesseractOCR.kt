@@ -8,6 +8,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
+/*! \class TesseractOCR
+    \brief A class to handle OCR processing using the Tesseract library.
+    \param context The context in which the class is used.
+ */
 class TesseractOCR(private val context: Context) {
     private val tessBaseApi: TessBaseAPI = TessBaseAPI()
 
@@ -35,6 +39,10 @@ class TesseractOCR(private val context: Context) {
         }
     }
 
+    /*! \brief Processes a bitmap image to extract text using Tesseract OCR.
+        \param bitmap The bitmap image to process.
+        \return The extracted text as a string.
+     */
     fun getOCRResult(bitmap: Bitmap): String {
         Log.d("TesseractOCR", "Processing image: ${bitmap.width}x${bitmap.height}")
         tessBaseApi.setImage(bitmap)
@@ -43,6 +51,7 @@ class TesseractOCR(private val context: Context) {
         return result
     }
 
+    /*! \brief Cleans up the Tesseract API resources. */
     fun cleanup() {
         tessBaseApi.end()
     }
