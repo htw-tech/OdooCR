@@ -7,6 +7,9 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
+/*! \class ManualEntryActivity
+    \brief Activity for manually entering invoice details.
+ */
 class ManualEntryActivity : AppCompatActivity() {
 
     private lateinit var etInvoiceNumber: EditText
@@ -18,6 +21,9 @@ class ManualEntryActivity : AppCompatActivity() {
     private lateinit var btnSubmit: Button
     private lateinit var btnBack: Button
 
+    /*! \brief Called when the activity is starting.
+        \param savedInstanceState If the activity is being re-initialized after previously being shut down then this Bundle contains the data it most recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manual_entry)
@@ -26,6 +32,7 @@ class ManualEntryActivity : AppCompatActivity() {
         setupListeners()
     }
 
+    /*! \brief Initialize views by finding them by their ID. */
     private fun initViews() {
         etInvoiceNumber = findViewById(R.id.etInvoiceNumber)
         etCustomer = findViewById(R.id.etCustomer)
@@ -37,6 +44,7 @@ class ManualEntryActivity : AppCompatActivity() {
         btnBack = findViewById(R.id.btnBack)
     }
 
+    /*! \brief Set up listeners for the buttons. */
     private fun setupListeners() {
         btnSubmit.setOnClickListener {
             submitData()
@@ -47,6 +55,7 @@ class ManualEntryActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Submits the data if inputs are valid. */
     private fun submitData() {
         if (validateInputs()) {
             val intent = Intent(this, ConfirmationActivity::class.java).apply {
@@ -61,6 +70,9 @@ class ManualEntryActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Validates the inputs entered by the user.
+        \return True if all inputs are valid, false otherwise.
+     */
     private fun validateInputs(): Boolean {
         var isValid = true
 
