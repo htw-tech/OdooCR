@@ -11,7 +11,7 @@ import android.view.animation.Animation
 
 class SplashActivity : AppCompatActivity() {
 
-    private val SPLASH_DELAY: Long = 3000 // 3 seconds
+    private val SPLASH_DELAY: Long = 2500
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,7 +25,7 @@ class SplashActivity : AppCompatActivity() {
         val animationSet = android.view.animation.AnimationSet(true).apply {
             addAnimation(fadeIn)
             addAnimation(slideUp)
-            duration = 1500 // 1.5 seconds for the animation
+            duration = 1500
         }
 
         titleTextView.startAnimation(animationSet)

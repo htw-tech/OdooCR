@@ -17,6 +17,9 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+/*! \class ConfirmationActivity
+    \brief Activity for confirming invoice details before sending to Odoo.
+ */
 class ConfirmationActivity : AppCompatActivity() {
 
     private lateinit var tvInvoiceNumber: TextView
@@ -35,6 +38,9 @@ class ConfirmationActivity : AppCompatActivity() {
     private val ADMIN_UID = 2
     private val ADMIN_PASSWORD = "admin"
 
+    /*! \brief Called when the activity is starting.
+        \param savedInstanceState If the activity is being re-initialized after previously being shut down then this Bundle contains the data it most recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_confirmation)
@@ -45,6 +51,7 @@ class ConfirmationActivity : AppCompatActivity() {
         setupListeners()
     }
 
+    /*! \brief Initialize views by finding them by their ID. */
     private fun initViews() {
         tvInvoiceNumber = findViewById(R.id.tvInvoiceNumber)
         tvCustomer = findViewById(R.id.tvCustomer)
@@ -57,6 +64,7 @@ class ConfirmationActivity : AppCompatActivity() {
         btnEdit = findViewById(R.id.btnEdit)
     }
 
+    /*! \brief Display data passed from the previous activity. */
     private fun displayData() {
         intent.apply {
             tvInvoiceNumber.text = "Invoice Number: ${getStringExtra("invoiceNumber")}"
@@ -79,11 +87,13 @@ class ConfirmationActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Set up listeners for the buttons. */
     private fun setupListeners() {
         btnConfirm.setOnClickListener { sendToOdoo() }
         btnEdit.setOnClickListener { finish() }
     }
 
+    /*! \brief Sends the invoice data to Odoo. */
     private fun sendToOdoo() {
         lifecycleScope.launch {
             try {
@@ -92,6 +102,11 @@ class ConfirmationActivity : AppCompatActivity() {
                 val customerName = intent.getStringExtra("customer") ?: ""
                 val productName = intent.getStringExtra("product") ?: ""
                 val userInvoiceNumber = intent.getStringExtra("invoiceNumber") ?: ""
+
+                if (isInvoiceNumberExists(userInvoiceNumber)) {
+                    Toast.makeText(this@ConfirmationActivity, "Error: Invoice Number already exists!", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
 
                 val customerId = getOrCreateCustomer(customerName)
                 val productId = getOrCreateProduct(productName)
@@ -111,12 +126,40 @@ class ConfirmationActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Check if the invoice number already exists in Odoo.
+        \param invoiceNumber The invoice number to check.
+        \return True if the invoice number exists, false otherwise.
+     */
+    private suspend fun isInvoiceNumberExists(invoiceNumber: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("$ODOO_URL/xmlrpc/2/object")
+            val client = XMLRPCClient(url)
+            val result = client.call(
+                "execute_kw", DB, ADMIN_UID, ADMIN_PASSWORD, "account.move", "search",
+                listOf(listOf(listOf("name", "=", invoiceNumber))),
+                mapOf("limit" to 1)
+            )
+            result is Array<*> && result.isNotEmpty()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking invoice number: $invoiceNumber", e)
+            false
+        }
+    }
+
+    /*! \brief Authenticate the user to Odoo.
+        \return The user ID.
+     */
     private suspend fun authenticateUser(): Int = withContext(Dispatchers.IO) {
         val url = URL("$ODOO_URL/xmlrpc/2/common")
         val client = XMLRPCClient(url)
         client.call("authenticate", DB, "mh.rouissi@gmail.com", ADMIN_PASSWORD, emptyList<Any>()) as Int
     }
 
+    /*! \brief Validate the date format.
+        \param dateString The date string to validate.
+        \return The validated date string.
+        \throws IllegalArgumentException If the date format is invalid.
+     */
     private fun validateDate(dateString: String?): String {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         return dateString?.let {
@@ -130,16 +173,29 @@ class ConfirmationActivity : AppCompatActivity() {
         } ?: throw IllegalArgumentException("Date is required.")
     }
 
+    /*! \brief Get or create a customer in Odoo.
+        \param customerName The name of the customer.
+        \return The customer ID.
+     */
     private suspend fun getOrCreateCustomer(customerName: String): Int = withContext(Dispatchers.IO) {
         searchOdooRecord("res.partner", customerName) ?: createOdooRecord("res.partner", mapOf("name" to customerName))
         ?: throw Exception("Failed to create customer: $customerName")
     }
 
+    /*! \brief Get or create a product in Odoo.
+        \param productName The name of the product.
+        \return The product ID.
+     */
     private suspend fun getOrCreateProduct(productName: String): Int = withContext(Dispatchers.IO) {
         searchOdooRecord("product.product", productName) ?: createOdooRecord("product.product", mapOf("name" to productName))
         ?: throw Exception("Failed to create product: $productName")
     }
 
+    /*! \brief Search for a record in Odoo.
+        \param model The model to search in.
+        \param name The name of the record.
+        \return The record ID if found, null otherwise.
+     */
     private suspend fun searchOdooRecord(model: String, name: String): Int? = withContext(Dispatchers.IO) {
         try {
             val url = URL("$ODOO_URL/xmlrpc/2/object")
@@ -158,6 +214,11 @@ class ConfirmationActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Create a record in Odoo.
+        \param model The model to create in.
+        \param values The values to set in the new record.
+        \return The new record ID if created, null otherwise.
+     */
     private suspend fun createOdooRecord(model: String, values: Map<String, Any?>): Int? = withContext(Dispatchers.IO) {
         try {
             val url = URL("$ODOO_URL/xmlrpc/2/object")
@@ -169,6 +230,10 @@ class ConfirmationActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Search for the barcode of a product.
+        \param productName The name of the product.
+        \return The barcode if found, an empty string otherwise.
+     */
     private suspend fun searchProductBarcode(productName: String): String = withContext(Dispatchers.IO) {
         try {
             val url = URL("$ODOO_URL/xmlrpc/2/object")
@@ -188,6 +253,16 @@ class ConfirmationActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Create an invoice in Odoo.
+        \param uid The user ID.
+        \param customerId The customer ID.
+        \param productId The product ID.
+        \param productBarcode The product barcode.
+        \param date The invoice date.
+        \param invoiceNumber The invoice number.
+        \return The invoice ID if created.
+        \throws Exception If the invoice creation fails.
+     */
     private suspend fun createInvoice(uid: Int, customerId: Int, productId: Int, productBarcode: String, date: String, invoiceNumber: String): Int = withContext(Dispatchers.IO) {
         val url = URL("$ODOO_URL/xmlrpc/2/object")
         val client = XMLRPCClient(url)
@@ -213,6 +288,9 @@ class ConfirmationActivity : AppCompatActivity() {
         result as? Int ?: throw Exception("Invoice creation failed: Unexpected response")
     }
 
+    /*! \brief Navigate to the success activity.
+        \param invoiceNumber The invoice number.
+     */
     private fun navigateToSuccessActivity(invoiceNumber: String) {
         val intent = Intent(this@ConfirmationActivity, SuccessActivity::class.java).apply {
             putExtra("invoiceNumber", invoiceNumber)
@@ -221,6 +299,10 @@ class ConfirmationActivity : AppCompatActivity() {
         finishAffinity()
     }
 
+    /*! \brief Handle options item selected.
+        \param item The selected menu item.
+        \return true if the item selection was handled, false otherwise.
+     */
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
