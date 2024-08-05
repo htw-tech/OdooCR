@@ -19,7 +19,9 @@ import android.app.ProgressDialog
 import android.os.Handler
 import android.os.Looper
 
-
+/*! \class EnterInvoiceActivity
+    \brief Activity for entering invoice details either by capturing an image, choosing from the gallery, or manually entering the data.
+ */
 class EnterInvoiceActivity : AppCompatActivity() {
 
     private val TAG = "EnterInvoiceActivity"
@@ -29,6 +31,9 @@ class EnterInvoiceActivity : AppCompatActivity() {
 
     private lateinit var invoiceProcessor: InvoiceProcessor
 
+    /*! \brief Called when the activity is starting.
+        \param savedInstanceState If the activity is being re-initialized after previously being shut down then this Bundle contains the data it most recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_enter_invoice)
@@ -54,10 +59,14 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Copies an invoice template to the gallery. */
     private fun copyInvoiceTemplateToGallery() {
         // Implementation as before
     }
 
+    /*! \brief Checks if the camera permission is granted.
+        \return True if the camera permission is granted, false otherwise.
+     */
     private fun checkCameraPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             this,
@@ -65,6 +74,7 @@ class EnterInvoiceActivity : AppCompatActivity() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    /*! \brief Requests the camera permission. */
     private fun requestCameraPermission() {
         ActivityCompat.requestPermissions(
             this,
@@ -73,6 +83,7 @@ class EnterInvoiceActivity : AppCompatActivity() {
         )
     }
 
+    /*! \brief Opens the camera to capture an image. */
     private fun openCamera() {
         Log.d(TAG, "Attempting to open camera")
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
@@ -84,11 +95,17 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Opens the gallery to choose an image. */
     private fun openGallery() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         startActivityForResult(intent, GALLERY_REQUEST_CODE)
     }
 
+    /*! \brief Handles the result of a permission request.
+        \param requestCode The request code passed in requestPermissions(android.app.Activity, String[], int).
+        \param permissions The requested permissions. Never null.
+        \param grantResults The grant results for the corresponding permissions which is either PERMISSION_GRANTED or PERMISSION_DENIED. Never null.
+     */
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_CODE) {
@@ -100,6 +117,11 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Handles the result of an activity result.
+        \param requestCode The integer request code originally supplied to startActivityForResult(), allowing you to identify who this result came from.
+        \param resultCode The integer result code returned by the child activity through its setResult().
+        \param data An Intent, which can return result data to the caller (various data can be attached to Intent "extras").
+     */
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == RESULT_OK) {
@@ -125,6 +147,9 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
+    /*! \brief Processes the captured or selected image.
+        \param bitmap The bitmap of the image to process.
+     */
     private fun processImage(bitmap: Bitmap) {
         val progressDialog = ProgressDialog(this)
         progressDialog.setMessage("Image processing in progress...")
