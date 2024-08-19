@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">OdooCR</string>
+    <string name="result_text">Result: %1$s</string>
+    <string name="error_text">Error processing invoice: %1$s</string>
 </resources>
