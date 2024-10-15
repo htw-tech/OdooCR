@@ -1,38 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:gravity="center">
+    android:padding="16dp">
 
     <TextView
+        android:id="@+id/tvChooseOption"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Please choose one of these options"
-        android:layout_marginBottom="16dp"/>
+        android:layout_centerHorizontal="true"
+        android:text="Choose one of these options"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/btnCaptureImage"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="CAPTURE IMAGE" />
+        android:layout_below="@id/tvChooseOption"
+        android:layout_marginTop="16dp"
+        android:text="Capture Image" />
 
     <Button
         android:id="@+id/btnChooseFromGallery"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="CHOOSE FROM GALLERY" />
+        android:layout_below="@id/btnCaptureImage"
+        android:layout_marginTop="16dp"
+        android:text="Choose from Gallery" />
 
     <Button
         android:id="@+id/btnEnterDataManually"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@id/btnChooseFromGallery"
+        android:layout_marginTop="16dp"
         android:text="Enter Data Manually" />
 
-    <TextView
+    <FrameLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="designed by minagoTECH Group"
-        android:layout_marginTop="16dp"/>
-</LinearLayout>
+        android:layout_centerInParent="true">
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/circular_progress_bar"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/progressText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="0%"
+            android:textSize="18sp"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tvDevelopedBy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:text="Developed by MinagoTECH"
+        android:textSize="14sp" />
+
+</RelativeLayout>

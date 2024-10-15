@@ -1,27 +1,25 @@
 package com.minago.odoocr
 
 import android.Manifest
-import android.content.ContentValues
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import android.app.ProgressDialog
-import android.os.Handler
-import android.os.Looper
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.*
 
-/*! \class EnterInvoiceActivity
-    \brief Activity for entering invoice details either by capturing an image, choosing from the gallery, or manually entering the data.
- */
 class EnterInvoiceActivity : AppCompatActivity() {
 
     private val TAG = "EnterInvoiceActivity"
@@ -30,17 +28,16 @@ class EnterInvoiceActivity : AppCompatActivity() {
     private val GALLERY_REQUEST_CODE = 1003
 
     private lateinit var invoiceProcessor: InvoiceProcessor
+    private lateinit var progressBar: ProgressBar
+    private lateinit var progressText: TextView
 
-    /*! \brief Called when the activity is starting.
-        \param savedInstanceState If the activity is being re-initialized after previously being shut down then this Bundle contains the data it most recently supplied in onSaveInstanceState(Bundle).
-     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_enter_invoice)
 
         invoiceProcessor = InvoiceProcessor(this)
-
-        copyInvoiceTemplateToGallery()
+        progressBar = findViewById(R.id.progressBar)
+        progressText = findViewById(R.id.progressText)
 
         findViewById<Button>(R.id.btnCaptureImage).setOnClickListener {
             if (checkCameraPermission()) {
@@ -51,7 +48,7 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnChooseFromGallery).setOnClickListener {
-            openGallery()
+            showAssetImageList()
         }
 
         findViewById<Button>(R.id.btnEnterDataManually).setOnClickListener {
@@ -59,14 +56,6 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
-    /*! \brief Copies an invoice template to the gallery. */
-    private fun copyInvoiceTemplateToGallery() {
-        // Implementation as before
-    }
-
-    /*! \brief Checks if the camera permission is granted.
-        \return True if the camera permission is granted, false otherwise.
-     */
     private fun checkCameraPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             this,
@@ -74,7 +63,6 @@ class EnterInvoiceActivity : AppCompatActivity() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    /*! \brief Requests the camera permission. */
     private fun requestCameraPermission() {
         ActivityCompat.requestPermissions(
             this,
@@ -83,7 +71,6 @@ class EnterInvoiceActivity : AppCompatActivity() {
         )
     }
 
-    /*! \brief Opens the camera to capture an image. */
     private fun openCamera() {
         Log.d(TAG, "Attempting to open camera")
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
@@ -95,17 +82,38 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
-    /*! \brief Opens the gallery to choose an image. */
-    private fun openGallery() {
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        startActivityForResult(intent, GALLERY_REQUEST_CODE)
+    private fun showAssetImageList() {
+        lifecycleScope.launch(Dispatchers.Default) {
+            val assetImages = assets.list("") ?: emptyArray()
+            val imageList = assetImages.filter { it.endsWith(".jpg") || it.endsWith(".png") }
+
+            withContext(Dispatchers.Main) {
+                AlertDialog.Builder(this@EnterInvoiceActivity)
+                    .setTitle("Select an image")
+                    .setItems(imageList.toTypedArray()) { _, which ->
+                        val selectedImage = imageList[which]
+                        loadImageFromAssets(selectedImage)
+                    }
+                    .show()
+            }
+        }
     }
 
-    /*! \brief Handles the result of a permission request.
-        \param requestCode The request code passed in requestPermissions(android.app.Activity, String[], int).
-        \param permissions The requested permissions. Never null.
-        \param grantResults The grant results for the corresponding permissions which is either PERMISSION_GRANTED or PERMISSION_DENIED. Never null.
-     */
+    private fun loadImageFromAssets(imageName: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = assets.open(imageName)
+                val imageBitmap = BitmapFactory.decodeStream(inputStream)
+                processImage(imageBitmap)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading image from assets", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@EnterInvoiceActivity, "Error loading image: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_CODE) {
@@ -117,11 +125,6 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
-    /*! \brief Handles the result of an activity result.
-        \param requestCode The integer request code originally supplied to startActivityForResult(), allowing you to identify who this result came from.
-        \param resultCode The integer result code returned by the child activity through its setResult().
-        \param data An Intent, which can return result data to the caller (various data can be attached to Intent "extras").
-     */
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == RESULT_OK) {
@@ -147,28 +150,72 @@ class EnterInvoiceActivity : AppCompatActivity() {
         }
     }
 
-    /*! \brief Processes the captured or selected image.
-        \param bitmap The bitmap of the image to process.
-     */
     private fun processImage(bitmap: Bitmap) {
-        val progressDialog = ProgressDialog(this)
-        progressDialog.setMessage("Image processing in progress...")
-        progressDialog.setCancelable(false)
-        progressDialog.show()
-
-        Handler(Looper.getMainLooper()).postDelayed({
+        lifecycleScope.launch(Dispatchers.Default) {
             try {
-                val result = invoiceProcessor.processInvoice(bitmap)
-                progressDialog.dismiss()
-                val intent = Intent(this, ResultActivity::class.java).apply {
-                    putExtra("INVOICE_RESULT", result)
+                showProgress()
+                updateProgress(0)
+
+                val result = withContext(Dispatchers.Default) {
+                    var progress = 0
+                    val progressJob = launch {
+                        while (isActive && progress < 95) {
+                            delay(100)
+                            progress += 1
+                            updateProgress(progress)
+                        }
+                    }
+
+                    val processingResult = invoiceProcessor.processInvoice(bitmap)
+                    progressJob.cancel()
+                    processingResult
                 }
-                startActivity(intent)
+
+                // Ensure smooth progress to 100%
+                for (i in progressBar.progress..99) {
+                    updateProgress(i)
+                    delay(20)
+                }
+                updateProgress(100)
+                delay(200) // Show 100% for a moment
+
+                hideProgress()
+                withContext(Dispatchers.Main) {
+                    val intent = Intent(this@EnterInvoiceActivity, ResultActivity::class.java).apply {
+                        putExtra("INVOICE_RESULT", result)
+                    }
+                    startActivity(intent)
+                }
             } catch (e: Exception) {
-                progressDialog.dismiss()
                 Log.e(TAG, "Error processing image", e)
-                Toast.makeText(this, "Error processing image: ${e.message}", Toast.LENGTH_SHORT).show()
+                hideProgress()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@EnterInvoiceActivity, "Error processing image: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
-        }, 1000) // Simulating processing time
+        }
+    }
+
+    private suspend fun showProgress() {
+        withContext(Dispatchers.Main) {
+            progressBar.visibility = View.VISIBLE
+            progressText.visibility = View.VISIBLE
+            progressBar.progress = 0
+            progressText.text = "0%"
+        }
+    }
+
+    private suspend fun hideProgress() {
+        withContext(Dispatchers.Main) {
+            progressBar.visibility = View.GONE
+            progressText.visibility = View.GONE
+        }
+    }
+
+    private suspend fun updateProgress(progress: Int) {
+        withContext(Dispatchers.Main) {
+            progressBar.progress = progress
+            progressText.text = "$progress%"
+        }
     }
 }
